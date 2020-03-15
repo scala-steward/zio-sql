@@ -150,6 +150,10 @@ trait Sql {
 
     type Aux[A] = Table { type TableType = A }
 
+    object Empty extends Table {
+      type TableType = Any
+    }
+
     sealed trait Source[F[_], A] extends Table {
       val name: TableName
       val columnSchema: ColumnSchema[A]
@@ -186,7 +190,7 @@ trait Sql {
    */
   sealed trait Read[+A]
   object Read {
-    sealed case class Select[A, B <: SelectionSet[A]](
+    sealed case class Select[A, +B <: SelectionSet[A]](
       selection: Selection[A, B], table: Table.Aux[A], 
       whereExpr: Expr[A, Boolean], 
       orderBy: List[Ordering[Expr[A, Any]]] = Nil, 
