@@ -1,60 +1,34 @@
-package zio.sql
+package zio.sql.parser
 
 import com.github.ghik.silencer.silent
 import org.spartanz.parserz._
+import zio.sql.Sql
 
-object CreateTableParser extends Sql with App {
+object CreateTableParser extends Sql with ParserBase with App {
 
   import Column._
   
-  val columnsString = "id int, name varchar, legendary boolean"
+  val columnsString = "id int,name varchar,legendary boolean"
   val tableString   = s"create table pokemons($columnsString)"
 
   val columnsStmt = int("id") :*: string("name") :*: boolean("legendary") :*: ColumnSet.Empty
   val table = columnsStmt.table("pokemons")
 
-  object Parser extends ParsersModule {
-    override type Input = String
-  }
+  import this.Parser._
+  import this.Parser.Expr._
+  import this.Parser.Grammar._
 
-  import Parser._
-  import Parser.Expr._
-  import Parser.Grammar._
+  val createKw = "create".toList.asInstanceOf[::[Char]]
+  val tableKw  = "table".toList.asInstanceOf[::[Char]]
 
-  type S    = Unit
-  type E    = String
-  type G[A] = Grammar[S, S, E, A]
+  val kwCreate: G[::[Char]] = alpha.rep1.filter("expected keyword: CREATE")(===(createKw))
+  val kwTable: G[::[Char]] =  alpha.rep1.filter("expected keyword: TABLE")(===(tableKw))
 
   //TODO
   //1. handle empty column set
   //2. handle uppercase/lowercase
   //3. handle digits in column types: int2, int4, int8, etc.
   //4. pretty print the resulting string
-
-  private val `(` = '('
-  private val `)` = ')'
-  private val `,` = ','
-  private val ` ` = ' '
-  private val createKw = "create".toList.asInstanceOf[::[Char]]
-  private val tableKw  = "table".toList.asInstanceOf[::[Char]]
-
-  val char: G[Char] = "char" @@ consumeOption("expected: char")(
-    s => s.headOption.map(s.drop(1) -> _),
-    { case (s, c) => Some(s + c.toString) }
-  )
-
-  val alpha: G[Char]    = char.filter("expected: alphabetical")(cond(_.isLetter)).tag("alpha")
-  val comma: G[Char]    = char.filter("expected: comma")(===(`,`))
-  val paren1: G[Char]   = char.filter("expected: open paren")(===(`(`))
-  val paren2: G[Char]   = char.filter("expected: close paren")(===(`)`))
-  val space: G[Char]    = char.filter("expected: space")(===(` `))
-  val kwCreate: G[::[Char]] = alpha.rep1.filter("expected keyword: CREATE")(===(createKw))
-  val kwTable: G[::[Char]] =  alpha.rep1.filter("expected keyword: TABLE")(===(tableKw))
-  val whitespace: G[Char] = char.filter("expected: whitespace")(cond(_.isWhitespace))
-  val whitespacesMand: G[::[Char]] = whitespace.rep1
-  val whitespacesOpt: G[List[Char]] = whitespace.rep
-
-  val whitespaceComma = "whitespace comma" @@ whitespacesOpt ~ comma ~ whitespacesOpt
 
   val name: G[String] = "name" @@ alpha.rep1.mapOption("name cannot be empty")(
     s => Some(s.mkString), 
@@ -72,7 +46,7 @@ object CreateTableParser extends Sql with App {
     }
   )
 
-  val column: G[Column[_]] = "column" @@ (name ~ whitespacesMand ~ typee).map(
+  val column: G[Column[_]] = "column" @@ (name ~ space ~ typee).map(
     { case ((n, _), t) => t.toLowerCase match {
                             case "bigint" | "int8" => Column.long(n)
                             case "boolean"         => Column.boolean(n)
@@ -80,7 +54,7 @@ object CreateTableParser extends Sql with App {
                             case "varchar"         => Column.string(n)
                           }
     },
-    { case c@Column(n) => ((n, ::(` `, Nil)), c.typeTag match {
+    { case c@Column(n) => ((n, ` `), c.typeTag match {
                             case TypeTag.TBigDecimal     => "decimal"
                             case TypeTag.TBoolean        => "boolean"
                             case TypeTag.TDouble         => "double precision"
@@ -99,25 +73,25 @@ object CreateTableParser extends Sql with App {
     }
   )
 
-  val columns = "columns" @@ column.separated(whitespaceComma)
+  val columns = "columns" @@ column.separated(comma)
 
   lazy val columnSet: G[ColumnSet] = "columnSet" @@ columns.map({
     case e => e.values.foldLeft[ColumnSet](ColumnSet.Empty) { case (a, el) => el :*: a }
   }, {
-    case e => SeparatedBy.fromList(e.columnsUntyped, ((Nil, `,`), List(` `)))
+    case e => SeparatedBy.fromList(e.columnsUntyped, `,`)
   })
 
   //change Table to Table.Source and get rid of the ColumnSet.Empty case
   //to consider: PostgreSQL allows creating tables with no columns for partitioning, 
   //  but this requires a change to Table model. Probably not something ZIO SQL needs to support.
   @silent
-  val tab: G[Table] = "table" @@ (kwCreate ~ whitespacesMand ~ kwTable ~ whitespacesMand ~ name ~ whitespacesOpt ~ ((paren1, `(`) ~> columnSet <~ (`)`, paren2))).map(
-    { case (((a, name), _), exp) => exp match {
+  val tab: G[Table] = "table" @@ (kwCreate ~ space ~ kwTable ~ space ~ name ~ ((paren1, `(`) ~> columnSet <~ (`)`, paren2))).map(
+    { case ((a, name), exp) => exp match {
                                   case ColumnSet.Empty => throw new IllegalArgumentException("Column set can't be empty")
                                   case c: ColumnSet.Cons[_, _] => c.table(name)
                                 } },
     { case t => t match {
-                  case ts: Table.Source[_, _] => ((((((createKw, ::(` `, Nil)), tableKw), ::(` `, Nil)), ts.name), List(` `)),ts.columnsUntyped.reverse.foldLeft[ColumnSet](ColumnSet.Empty) { case (a, c) => c :*: a })
+                  case ts: Table.Source[_, _] => (((((createKw, ` `), tableKw), ` `), ts.name),ts.columnsUntyped.reverse.foldLeft[ColumnSet](ColumnSet.Empty) { case (a, c) => c :*: a })
                   case _ => throw new IllegalArgumentException("Column set can't be empty")
                 } }
   )
