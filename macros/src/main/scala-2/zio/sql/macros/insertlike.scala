@@ -91,7 +91,7 @@ object InsertLike {
       if (toInsert.typeSymbol.asClass.isCaseClass) {
         toInsert.dealias match {
           // for case classes
-          case TypeRef(_, _, types) if types == Nil                  =>
+          case TypeRef(_, _, types) if types == Nil =>
             toInsert.decls.sorted.collect {
               case p: TermSymbol if p.isCaseAccessor && !p.isMethod =>
                 p.typeSignature match {

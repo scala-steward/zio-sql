@@ -255,7 +255,9 @@ object Read {
       expr3: Expr[F3, Source, Any],
       expr4: Expr[F4, Source, Any],
       expr5: Expr[F5, Source, Any]
-    )(implicit verify: GroupByLike[F, F1 with F2 with F3 with F4 with F5]): Subselect.WithGroupByF[
+    )(implicit
+      verify: GroupByLike[F, F1 with F2 with F3 with F4 with F5]
+    ): Subselect.WithGroupByF[
       F,
       Repr,
       Source,
@@ -284,7 +286,9 @@ object Read {
       expr4: Expr[F4, Source, Any],
       expr5: Expr[F5, Source, Any],
       expr6: Expr[F6, Source, Any]
-    )(implicit verify: GroupByLike[F, F1 with F2 with F3 with F4 with F5 with F6]): Subselect.WithGroupByF[
+    )(implicit
+      verify: GroupByLike[F, F1 with F2 with F3 with F4 with F5 with F6]
+    ): Subselect.WithGroupByF[
       F,
       Repr,
       Source,
@@ -315,7 +319,9 @@ object Read {
       expr5: Expr[F5, Source, Any],
       expr6: Expr[F6, Source, Any],
       expr7: Expr[F7, Source, Any]
-    )(implicit verify: GroupByLike[F, F1 with F2 with F3 with F4 with F5 with F6 with F7]): Subselect.WithGroupByF[
+    )(implicit
+      verify: GroupByLike[F, F1 with F2 with F3 with F4 with F5 with F6 with F7]
+    ): Subselect.WithGroupByF[
       F,
       Repr,
       Source,

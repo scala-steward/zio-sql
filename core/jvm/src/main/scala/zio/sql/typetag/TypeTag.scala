@@ -105,7 +105,7 @@ object TypeTag {
         }
 
       // TODO get TypeTag of A available out of Schema[A] and derive typetag from Schema.Transform
-      case _: Schema.Transform[_, _, _]               => None
-      case _                                          => None
+      case _: Schema.Transform[_, _, _] => None
+      case _                            => None
     }
 }
